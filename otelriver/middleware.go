@@ -1,5 +1,3 @@
-// Package otelriver provides OpenTelemetry utilities for the River job
-// queue.
 package otelriver
 
 import (
@@ -47,11 +45,11 @@ type Middleware struct {
 
 // Bundle of metrics associated with a middleware.
 type middlewareMetrics struct {
-	insert                      metric.Int64Counter
-	insertMany                  metric.Int64Counter
+	insertCount                 metric.Int64Counter
+	insertManyCount             metric.Int64Counter
 	insertManyDuration          metric.Float64Gauge
 	insertManyDurationHistogram metric.Float64Histogram
-	work                        metric.Int64Counter
+	workCount                   metric.Int64Counter
 	workDuration                metric.Float64Gauge
 	workDurationHistogram       metric.Float64Histogram
 }
@@ -81,11 +79,11 @@ func NewMiddleware(config *MiddlewareConfig) *Middleware {
 			// See unit guidelines:
 			//
 			// https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units
-			insert:                      mustInt64Counter(meter, prefix+"insert", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
-			insertMany:                  mustInt64Counter(meter, prefix+"insert_many", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job_batch}")),
+			insertCount:                 mustInt64Counter(meter, prefix+"insert_count", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
+			insertManyCount:             mustInt64Counter(meter, prefix+"insert_many_count", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job_batch}")),
 			insertManyDuration:          mustFloat64Gauge(meter, prefix+"insert_many_duration", metric.WithDescription("Duration of job batch insertion"), metric.WithUnit("s")),
 			insertManyDurationHistogram: mustFloat64Histogram(meter, prefix+"insert_many_duration_histogram", metric.WithDescription("Duration of job batch insertion (histogram)"), metric.WithUnit("s")),
-			work:                        mustInt64Counter(meter, prefix+"work", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
+			workCount:                   mustInt64Counter(meter, prefix+"work_count", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
 			workDuration:                mustFloat64Gauge(meter, prefix+"work_duration", metric.WithDescription("Duration of job being worked"), metric.WithUnit("s")),
 			workDurationHistogram:       mustFloat64Histogram(meter, prefix+"work_duration_histogram", metric.WithDescription("Duration of job being worked (histogram)"), metric.WithUnit("s")),
 		},
@@ -116,8 +114,8 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)
 
-		m.metrics.insert.Add(ctx, int64(len(manyParams)))
-		m.metrics.insertMany.Add(ctx, 1)
+		m.metrics.insertCount.Add(ctx, int64(len(manyParams)))
+		m.metrics.insertManyCount.Add(ctx, 1)
 		m.metrics.insertManyDuration.Record(ctx, durationSeconds, measurementOpt)
 		m.metrics.insertManyDurationHistogram.Record(ctx, durationSeconds, measurementOpt)
 	}()
@@ -152,7 +150,7 @@ func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner fu
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)
 
-		m.metrics.work.Add(ctx, 1, measurementOpt)
+		m.metrics.workCount.Add(ctx, 1, measurementOpt)
 		m.metrics.workDuration.Record(ctx, durationSeconds, measurementOpt)
 		m.metrics.workDurationHistogram.Record(ctx, durationSeconds, measurementOpt)
 	}()
