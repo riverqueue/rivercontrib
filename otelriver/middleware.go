@@ -82,7 +82,7 @@ func NewMiddleware(config *MiddlewareConfig) *Middleware {
 			//
 			// https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units
 			insert:                      mustInt64Counter(meter, prefix+"insert", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
-			insertMany:                  mustInt64Counter(meter, prefix+"insert_many", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job}")),
+			insertMany:                  mustInt64Counter(meter, prefix+"insert_many", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job_batch}")),
 			insertManyDuration:          mustFloat64Gauge(meter, prefix+"insert_many_duration", metric.WithDescription("Duration of job batch insertion"), metric.WithUnit("s")),
 			insertManyDurationHistogram: mustFloat64Histogram(meter, prefix+"insert_many_duration_histogram", metric.WithDescription("Duration of job batch insertion (histogram)"), metric.WithUnit("s")),
 			work:                        mustInt64Counter(meter, prefix+"work", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
