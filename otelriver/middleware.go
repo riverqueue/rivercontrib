@@ -47,12 +47,13 @@ type Middleware struct {
 
 // Bundle of metrics associated with a middleware.
 type middlewareMetrics struct {
-	jobWork                    metric.Int64Counter
-	jobWorkDuration            metric.Float64Gauge
-	jobWorkDurationHistogram   metric.Float64Histogram
-	jobInsert                  metric.Int64Counter
-	jobInsertDuration          metric.Float64Gauge
-	jobInsertDurationHistogram metric.Float64Histogram
+	insert                      metric.Int64Counter
+	insertMany                  metric.Int64Counter
+	insertManyDuration          metric.Float64Gauge
+	insertManyDurationHistogram metric.Float64Histogram
+	work                        metric.Int64Counter
+	workDuration                metric.Float64Gauge
+	workDurationHistogram       metric.Float64Histogram
 }
 
 // NewMiddleware initializes a new River OpenTelemetry middleware.
@@ -80,12 +81,13 @@ func NewMiddleware(config *MiddlewareConfig) *Middleware {
 			// See unit guidelines:
 			//
 			// https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units
-			jobInsert:                  mustInt64Counter(meter, prefix+"job_insert", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
-			jobInsertDuration:          mustFloat64Gauge(meter, prefix+"job_insert_duration", metric.WithDescription("Duration of insertion of job batch"), metric.WithUnit("s")),
-			jobInsertDurationHistogram: mustFloat64Histogram(meter, prefix+"job_insert_duration_histogram", metric.WithDescription("Duration of insertion of job batch (histogram)"), metric.WithUnit("s")),
-			jobWork:                    mustInt64Counter(meter, prefix+"job_work", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
-			jobWorkDuration:            mustFloat64Gauge(meter, prefix+"job_work_duration", metric.WithDescription("Duration of job being worked"), metric.WithUnit("s")),
-			jobWorkDurationHistogram:   mustFloat64Histogram(meter, prefix+"job_work_duration_histogram", metric.WithDescription("Duration of job being worked (histogram)"), metric.WithUnit("s")),
+			insert:                      mustInt64Counter(meter, prefix+"insert", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
+			insertMany:                  mustInt64Counter(meter, prefix+"insert_many", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job}")),
+			insertManyDuration:          mustFloat64Gauge(meter, prefix+"insert_many_duration", metric.WithDescription("Duration of job batch insertion"), metric.WithUnit("s")),
+			insertManyDurationHistogram: mustFloat64Histogram(meter, prefix+"insert_many_duration_histogram", metric.WithDescription("Duration of job batch insertion (histogram)"), metric.WithUnit("s")),
+			work:                        mustInt64Counter(meter, prefix+"work", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
+			workDuration:                mustFloat64Gauge(meter, prefix+"work_duration", metric.WithDescription("Duration of job being worked"), metric.WithUnit("s")),
+			workDurationHistogram:       mustFloat64Histogram(meter, prefix+"work_duration_histogram", metric.WithDescription("Duration of job being worked (histogram)"), metric.WithUnit("s")),
 		},
 		tracer: tracerProvider.Tracer(name),
 	}
@@ -114,9 +116,10 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)
 
-		m.metrics.jobInsert.Add(ctx, int64(len(manyParams)))
-		m.metrics.jobInsertDuration.Record(ctx, durationSeconds, measurementOpt)
-		m.metrics.jobInsertDurationHistogram.Record(ctx, durationSeconds, measurementOpt)
+		m.metrics.insert.Add(ctx, int64(len(manyParams)))
+		m.metrics.insertMany.Add(ctx, 1)
+		m.metrics.insertManyDuration.Record(ctx, durationSeconds, measurementOpt)
+		m.metrics.insertManyDurationHistogram.Record(ctx, durationSeconds, measurementOpt)
 	}()
 
 	insertRes, err = doInner(ctx)
@@ -149,9 +152,9 @@ func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner fu
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)
 
-		m.metrics.jobWork.Add(ctx, 1, measurementOpt)
-		m.metrics.jobWorkDuration.Record(ctx, durationSeconds, measurementOpt)
-		m.metrics.jobWorkDurationHistogram.Record(ctx, durationSeconds, measurementOpt)
+		m.metrics.work.Add(ctx, 1, measurementOpt)
+		m.metrics.workDuration.Record(ctx, durationSeconds, measurementOpt)
+		m.metrics.workDurationHistogram.Record(ctx, durationSeconds, measurementOpt)
 	}()
 
 	err = doInner(ctx)
