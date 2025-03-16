@@ -20,6 +20,7 @@ const (
 	// OpenTelemetry docs recommended this be a fully qualified Go package name.
 	name = "github.com/riverqueue/rivercontrib/otelriver"
 
+	// Prefix added to than names of all emitted metrics and traces.
 	prefix = "river."
 )
 
