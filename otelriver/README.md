@@ -6,4 +6,4 @@ See [`example_middleware_test.go`](./example_middleware_test.go) for usage detai
 
 ## Use with DataDog
 
-See [using the OpenTelemetry API with DataDog](https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/go/otel/) for instructions on how to configure a DataDog OpenTelemetry tracer provider.
+See [using the OpenTelemetry API with DataDog](https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/go/otel/) and the examples in [`datadogriver`](../datadogriver/) for how to configure a DataDog OpenTelemetry tracer provider.
