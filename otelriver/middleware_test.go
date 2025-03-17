@@ -23,7 +23,7 @@ var (
 func TestMiddleware(t *testing.T) {
 	t.Parallel()
 
-	ctx := t.Context()
+	ctx := context.Background()
 
 	type testBundle struct {
 		exporter *tracetest.InMemoryExporter
