@@ -24,7 +24,7 @@ const (
 
 // MiddlewareConfig is configuration for River's OpenTelemetry middleware.
 type MiddlewareConfig struct {
-	// MeterProvider is a MetricProvider to base metrics on. May be left as nil
+	// MeterProvider is a MeterProvider to base metrics on. May be left as nil
 	// to use the default global provider.
 	MeterProvider metric.MeterProvider
 
