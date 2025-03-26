@@ -29,7 +29,7 @@ jobs:
   golangci-lint:
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_VERSION: v1.64.4
+      GOLANGCI_LINT_VERSION: v2.0.0
 
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
           go-version-file: "go.work"
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           # golangci-lint needs to be run separately for every Go module, and
           # its GitHub Action doesn't provide any way to do that. Have it fetch
