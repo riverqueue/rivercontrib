@@ -3,6 +3,7 @@ package otelriver
 import (
 	"cmp"
 	"context"
+	"errors"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -107,7 +108,8 @@ func NewMiddleware(config *MiddlewareConfig) *Middleware {
 }
 
 func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.JobInsertParams, doInner func(ctx context.Context) ([]*rivertype.JobInsertResult, error)) ([]*rivertype.JobInsertResult, error) {
-	ctx, span := m.tracer.Start(ctx, prefix+"insert_many")
+	ctx, span := m.tracer.Start(ctx, prefix+"insert_many",
+		trace.WithSpanKind(trace.SpanKindProducer))
 	defer span.End()
 
 	attrs := []attribute.KeyValue{
@@ -141,16 +143,22 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 }
 
 func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner func(context.Context) error) error {
-	ctx, span := m.tracer.Start(ctx, prefix+"work")
+	ctx, span := m.tracer.Start(ctx, prefix+"work",
+		trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
 	attrs := []attribute.KeyValue{
+		attribute.Int64("id", job.ID),
 		attribute.Int("attempt", job.Attempt),
+		attribute.String("created_at", job.CreatedAt.Format(time.RFC3339)),
 		attribute.String("kind", job.Kind),
+		attribute.Int("priority", job.Priority),
 		attribute.String("queue", job.Queue),
+		attribute.String("scheduled_at", job.ScheduledAt.Format(time.RFC3339)),
 		attribute.String("status", ""), // replaced below
+		attribute.StringSlice("tag", job.Tags),
 	}
-	const statusIndex = 3
+	const statusIndex = 7
 
 	var (
 		begin    = time.Now()
@@ -159,6 +167,19 @@ func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner fu
 	)
 	defer func() {
 		duration := m.durationInPreferredUnit(time.Since(begin))
+
+		if err != nil {
+			var (
+				cancelErr *river.JobCancelError
+				snoozeErr *river.JobSnoozeError
+			)
+			switch {
+			case errors.As(err, &cancelErr):
+				attrs = append(attrs, attribute.Bool("cancel", true))
+			case errors.As(err, &snoozeErr):
+				attrs = append(attrs, attribute.Bool("snooze", true))
+			}
+		}
 
 		setAttributeAndSpanStatus(attrs, statusIndex, span, panicked, err)
 
