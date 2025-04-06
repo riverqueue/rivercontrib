@@ -8,7 +8,7 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.19.0
 	github.com/riverqueue/river/rivershared v0.19.0
 	github.com/riverqueue/river/rivertype v0.19.0
-	github.com/riverqueue/rivercontrib/otelriver v0.1.0
+	github.com/riverqueue/rivercontrib/otelriver v0.2.0
 	go.opentelemetry.io/otel v1.35.0
 )
 
