@@ -3,7 +3,9 @@ package otelriver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
@@ -227,10 +229,19 @@ func TestMiddleware(t *testing.T) {
 			return nil
 		}
 
+		var (
+			createdAt   = time.Now()
+			scheduledAt = time.Now().Add(1 * time.Second)
+		)
 		err := middleware.Work(ctx, &rivertype.JobRow{
-			Attempt: 6,
-			Kind:    "no_op",
-			Queue:   "my_queue",
+			ID:          123,
+			Attempt:     6,
+			CreatedAt:   createdAt,
+			Kind:        "no_op",
+			Priority:    1,
+			Queue:       "my_queue",
+			ScheduledAt: scheduledAt,
+			Tags:        []string{"a", "b"},
 		}, doInner)
 		require.NoError(t, err)
 
@@ -238,9 +249,14 @@ func TestMiddleware(t *testing.T) {
 		require.Len(t, spans, 1)
 
 		span := spans[0]
+		require.Equal(t, int64(123), getAttribute(t, span.Attributes, "id").AsInt64())
 		require.Equal(t, int64(6), getAttribute(t, span.Attributes, "attempt").AsInt64())
+		require.Equal(t, createdAt.Format(time.RFC3339), getAttribute(t, span.Attributes, "created_at").AsString())
 		require.Equal(t, "my_queue", getAttribute(t, span.Attributes, "queue").AsString())
+		require.Equal(t, int64(1), getAttribute(t, span.Attributes, "priority").AsInt64())
 		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
+		require.Equal(t, scheduledAt.Format(time.RFC3339), getAttribute(t, span.Attributes, "scheduled_at").AsString())
+		require.Equal(t, []string{"a", "b"}, getAttribute(t, span.Attributes, "tag").AsStringSlice())
 		require.Equal(t, "river.work", span.Name)
 		require.Equal(t, codes.Ok, span.Status.Code)
 
@@ -299,6 +315,48 @@ func TestMiddleware(t *testing.T) {
 		requireSum(t, metrics, "river.work_count", 1, expectedAttrs...)
 		requireGaugeNotEmpty(t, metrics, "river.work_duration", expectedAttrs...)
 		requireHistogramCount(t, metrics, "river.work_duration_histogram", 1, expectedAttrs...)
+	})
+
+	t.Run("JobCancelError", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) error {
+			return fmt.Errorf("wrapped job cancel: %w", rivertype.JobCancel(errors.New("inner error")))
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{
+			Kind: "no_op",
+		}, doInner)
+		require.EqualError(t, err, "wrapped job cancel: JobCancelError: inner error")
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.True(t, getAttribute(t, span.Attributes, "cancel").AsBool())
+	})
+
+	t.Run("JobSnoozeError", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) error {
+			return fmt.Errorf("wrapped job snooze: %w", &rivertype.JobSnoozeError{})
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{
+			Kind: "no_op",
+		}, doInner)
+		require.EqualError(t, err, "wrapped job snooze: JobSnoozeError: 0s")
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.True(t, getAttribute(t, span.Attributes, "snooze").AsBool())
 	})
 
 	t.Run("WorkPanic", func(t *testing.T) {
