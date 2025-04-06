@@ -30,7 +30,19 @@ type MiddlewareConfig struct {
 	// `river.work_duration` are emitted.
 	//
 	// Must be one of "ms" (milliseconds) or "s" (seconds). Defaults to seconds.
+	//
+	// Does not modify metrics emitted by EnableSemanticMetrics because those
+	// are constrained to seconds by specification.
 	DurationUnit string
+
+	// EnableSemanticMetrics emits metrics compliant with OpenTelemetry's
+	// "semantic conventions" for messaging clients:
+	//
+	// https://opentelemetry.io/docs/specs/semconv/messaging/messaging-metrics/
+	//
+	// This has the effect of having all messaging systems share the same common
+	// metric names, with attributes differentiating them.
+	EnableSemanticMetrics bool
 
 	// MeterProvider is a MeterProvider to base metrics on. May be left as nil
 	// to use the default global provider.
@@ -54,13 +66,17 @@ type Middleware struct {
 
 // Bundle of metrics associated with a middleware.
 type middlewareMetrics struct {
-	insertCount                 metric.Int64Counter
-	insertManyCount             metric.Int64Counter
-	insertManyDuration          metric.Float64Gauge
-	insertManyDurationHistogram metric.Float64Histogram
-	workCount                   metric.Int64Counter
-	workDuration                metric.Float64Gauge
-	workDurationHistogram       metric.Float64Histogram
+	insertCount                      metric.Int64Counter
+	insertManyCount                  metric.Int64Counter
+	insertManyDuration               metric.Float64Gauge
+	insertManyDurationHistogram      metric.Float64Histogram
+	messagingClientConsumedMessages  metric.Int64Counter
+	messagingClientOperationDuration metric.Float64Histogram
+	messagingClientSentMessages      metric.Int64Counter
+	messagingProcessDuration         metric.Float64Histogram
+	workCount                        metric.Int64Counter
+	workDuration                     metric.Float64Gauge
+	workDurationHistogram            metric.Float64Histogram
 }
 
 // NewMiddleware initializes a new River OpenTelemetry middleware.
@@ -88,22 +104,31 @@ func NewMiddleware(config *MiddlewareConfig) *Middleware {
 
 	meter := meterProvider.Meter(name)
 
+	metrics := middlewareMetrics{
+		// See unit guidelines:
+		//
+		// https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units
+		insertCount:                 mustInt64Counter(meter, prefix+"insert_count", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
+		insertManyCount:             mustInt64Counter(meter, prefix+"insert_many_count", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job_batch}")),
+		insertManyDuration:          mustFloat64Gauge(meter, prefix+"insert_many_duration", metric.WithDescription("Duration of job batch insertion"), metric.WithUnit(durationUnit)),
+		insertManyDurationHistogram: mustFloat64Histogram(meter, prefix+"insert_many_duration_histogram", metric.WithDescription("Duration of job batch insertion (histogram)"), metric.WithUnit(durationUnit)),
+		workCount:                   mustInt64Counter(meter, prefix+"work_count", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
+		workDuration:                mustFloat64Gauge(meter, prefix+"work_duration", metric.WithDescription("Duration of job being worked"), metric.WithUnit(durationUnit)),
+		workDurationHistogram:       mustFloat64Histogram(meter, prefix+"work_duration_histogram", metric.WithDescription("Duration of job being worked (histogram)"), metric.WithUnit(durationUnit)),
+	}
+
+	if config.EnableSemanticMetrics {
+		metrics.messagingClientConsumedMessages = mustInt64Counter(meter, "messaging.client.consumed.messages", metric.WithDescription("Number of messages that were delivered to the application."))
+		metrics.messagingClientOperationDuration = mustFloat64Histogram(meter, "messaging.client.operation.duration", metric.WithDescription("Duration of messaging operation initiated by a producer or consumer client."), metric.WithUnit(durationUnit))
+		metrics.messagingClientSentMessages = mustInt64Counter(meter, "messaging.client.sent.messages", metric.WithDescription("Number of messages producer attempted to send to the broker."))
+		metrics.messagingProcessDuration = mustFloat64Histogram(meter, "messaging.process.duration", metric.WithDescription("Duration of processing operation."), metric.WithUnit(durationUnit))
+	}
+
 	return &Middleware{
-		config: config,
-		meter:  meter,
-		metrics: middlewareMetrics{
-			// See unit guidelines:
-			//
-			// https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units
-			insertCount:                 mustInt64Counter(meter, prefix+"insert_count", metric.WithDescription("Number of jobs inserted"), metric.WithUnit("{job}")),
-			insertManyCount:             mustInt64Counter(meter, prefix+"insert_many_count", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job_batch}")),
-			insertManyDuration:          mustFloat64Gauge(meter, prefix+"insert_many_duration", metric.WithDescription("Duration of job batch insertion"), metric.WithUnit(durationUnit)),
-			insertManyDurationHistogram: mustFloat64Histogram(meter, prefix+"insert_many_duration_histogram", metric.WithDescription("Duration of job batch insertion (histogram)"), metric.WithUnit(durationUnit)),
-			workCount:                   mustInt64Counter(meter, prefix+"work_count", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
-			workDuration:                mustFloat64Gauge(meter, prefix+"work_duration", metric.WithDescription("Duration of job being worked"), metric.WithUnit(durationUnit)),
-			workDurationHistogram:       mustFloat64Histogram(meter, prefix+"work_duration_histogram", metric.WithDescription("Duration of job being worked (histogram)"), metric.WithUnit(durationUnit)),
-		},
-		tracer: tracerProvider.Tracer(name),
+		config:  config,
+		meter:   meter,
+		metrics: metrics,
+		tracer:  tracerProvider.Tracer(name),
 	}
 }
 
@@ -135,6 +160,16 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 		m.metrics.insertManyCount.Add(ctx, 1, measurementOpt)
 		m.metrics.insertManyDuration.Record(ctx, duration, measurementOpt)
 		m.metrics.insertManyDurationHistogram.Record(ctx, duration, measurementOpt)
+
+		if m.config.EnableSemanticMetrics {
+			measurementOpt := metric.WithAttributes(
+				attribute.String("messaging.operation.name", "insert_many"),
+				attribute.String("messaging.system", "river"),
+			)
+
+			m.metrics.messagingClientOperationDuration.Record(ctx, duration, measurementOpt)
+			m.metrics.messagingClientSentMessages.Add(ctx, int64(len(manyParams)), measurementOpt)
+		}
 	}()
 
 	insertRes, err = doInner(ctx)
@@ -189,6 +224,17 @@ func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner fu
 		m.metrics.workCount.Add(ctx, 1, measurementOpt)
 		m.metrics.workDuration.Record(ctx, duration, measurementOpt)
 		m.metrics.workDurationHistogram.Record(ctx, duration, measurementOpt)
+
+		if m.config.EnableSemanticMetrics {
+			measurementOpt := metric.WithAttributes(
+				attribute.String("messaging.operation.name", "work"),
+				attribute.String("messaging.system", "river"),
+			)
+
+			m.metrics.messagingClientConsumedMessages.Add(ctx, 1, measurementOpt)
+			m.metrics.messagingClientOperationDuration.Record(ctx, duration, measurementOpt)
+			m.metrics.messagingProcessDuration.Record(ctx, duration, measurementOpt)
+		}
 	}()
 
 	err = doInner(ctx)
