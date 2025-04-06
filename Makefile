@@ -44,8 +44,8 @@ $(foreach mod,$(submodules),$(eval $(call tidy-target,$(mod))))
 
 .PHONY: update-mod-go
 update-mod-go: ## Update `go`/`toolchain` directives in all submodules to match `go.work`
-	PACKAGE_PREFIX="github.com/riverqueue/rivercontrib" go run github.com/riverqueue/river/rivershared/cmd/update-mod-go@latest ./go.work
+	go run github.com/riverqueue/river/rivershared/cmd/update-mod-go@latest ./go.work
 
 .PHONY: update-mod-version
 update-mod-version: ## Update River packages in all submodules to $VERSION
-	go run github.com/riverqueue/river/rivershared/cmd/update-mod-version@latest ./go.work
+	PACKAGE_PREFIX="github.com/riverqueue/rivercontrib" go run github.com/riverqueue/river/rivershared/cmd/update-mod-version@latest ./go.work
