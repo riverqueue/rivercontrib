@@ -10,13 +10,15 @@ The middleware supports these options:
 
 ``` go
 middleware := otelriver.NewMiddleware(&MiddlewareConfig{
-    DurationUnit:   "ms",
-    MeterProvider:  meterProvider,
-    TracerProvider: tracerProvider,
+    DurationUnit:          "ms",
+    EnableSemanticMetrics: true,
+    MeterProvider:         meterProvider,
+    TracerProvider:        tracerProvider,
 })
 ```
 
 * `DurationUnit`: The unit which durations are emitted as, either "ms" (milliseconds) or "s" (seconds). Defaults to seconds.
+* `EnableSemanticMetrics`: Causes the middleware to emit metrics compliant with OpenTelemetry's ["semantic conventions"](https://opentelemetry.io/docs/specs/semconv/messaging/messaging-metrics/) for message clients. This has the effect of having all messaging systems share the same common metric names, with attributes differentiating them.
 * `MeterProvider`: Injected OpenTelemetry meter provider. The global meter provider is used by default.
 * `TracerProvider`: Injected OpenTelemetry tracer provider. The global tracer provider is used by default.
 

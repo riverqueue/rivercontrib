@@ -169,6 +169,10 @@ func TestMiddleware(t *testing.T) {
 		requireSum(t, metrics, "river.insert_many_count", 1, expectedAttrs...)
 		requireGaugeNotEmpty(t, metrics, "river.insert_many_duration", expectedAttrs...)
 		requireHistogramCount(t, metrics, "river.insert_many_duration_histogram", 1, expectedAttrs...)
+
+		// Requires EnableSemanticMetrics.
+		requireNoMetric(t, metrics, "messaging.client.sent.messages")
+		requireNoMetric(t, metrics, "messaging.client.operation.duration")
 	})
 
 	// Make sure the middleware can fall back to a global provider.
@@ -217,6 +221,40 @@ func TestMiddleware(t *testing.T) {
 		{
 			metric, _ := requireHistogramCount(t, metrics, "river.insert_many_duration_histogram", 1)
 			require.Equal(t, "ms", metric.Unit)
+		}
+	})
+
+	t.Run("InsertManyEnableSemanticMetrics", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{
+			EnableSemanticMetrics: true,
+		})
+
+		doInner := func(ctx context.Context) ([]*rivertype.JobInsertResult, error) {
+			return []*rivertype.JobInsertResult{
+				{Job: &rivertype.JobRow{ID: 123}},
+			}, nil
+		}
+
+		insertRes, err := middleware.InsertMany(ctx, []*rivertype.JobInsertParams{{Kind: "no_op"}}, doInner)
+		require.NoError(t, err)
+		require.Equal(t, []*rivertype.JobInsertResult{
+			{Job: &rivertype.JobRow{ID: 123}},
+		}, insertRes)
+
+		var (
+			expectedAttrs = []attribute.KeyValue{
+				attribute.String("messaging.operation.name", "insert_many"),
+				attribute.String("messaging.system", "river"),
+			}
+			metrics metricdata.ResourceMetrics
+		)
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		requireSum(t, metrics, "messaging.client.sent.messages", 1, expectedAttrs...)
+		{
+			metric, _ := requireHistogramCount(t, metrics, "messaging.client.operation.duration", 1, expectedAttrs...)
+			require.Equal(t, "s", metric.Unit)
 		}
 	})
 
@@ -276,6 +314,11 @@ func TestMiddleware(t *testing.T) {
 			metric, _ := requireHistogramCount(t, metrics, "river.work_duration_histogram", 1, expectedAttrs...)
 			require.Equal(t, "s", metric.Unit)
 		}
+
+		// Requires EnableSemanticMetrics.
+		requireNoMetric(t, metrics, "messaging.client.consumed.messages")
+		requireNoMetric(t, metrics, "messaging.client.operation.duration")
+		requireNoMetric(t, metrics, "messaging.process.duration")
 	})
 
 	t.Run("WorkError", func(t *testing.T) {
@@ -439,6 +482,41 @@ func TestMiddleware(t *testing.T) {
 			require.Equal(t, "ms", metric.Unit)
 		}
 	})
+
+	t.Run("WorkEnableSemanticMetrics ", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{
+			EnableSemanticMetrics: true,
+		})
+
+		doInner := func(ctx context.Context) error {
+			return nil
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{
+			ID: 123,
+		}, doInner)
+		require.NoError(t, err)
+
+		var (
+			expectedAttrs = []attribute.KeyValue{
+				attribute.String("messaging.operation.name", "work"),
+				attribute.String("messaging.system", "river"),
+			}
+			metrics metricdata.ResourceMetrics
+		)
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		requireSum(t, metrics, "messaging.client.consumed.messages", 1, expectedAttrs...)
+		{
+			metric, _ := requireHistogramCount(t, metrics, "messaging.client.operation.duration", 1, expectedAttrs...)
+			require.Equal(t, "s", metric.Unit)
+		}
+		{
+			metric, _ := requireHistogramCount(t, metrics, "messaging.process.duration", 1, expectedAttrs...)
+			require.Equal(t, "s", metric.Unit)
+		}
+	})
 }
 
 func getAttribute(t *testing.T, attrs []attribute.KeyValue, key string) attribute.Value {
@@ -453,25 +531,24 @@ func getAttribute(t *testing.T, attrs []attribute.KeyValue, key string) attribut
 	return attribute.Value{}
 }
 
-func getMetric[T metricdatatest.Datatypes](t *testing.T, metrics metricdata.ResourceMetrics, name string) (metricdata.Metrics, T) {
+func getMetric[T metricdatatest.Datatypes](t *testing.T, metrics metricdata.ResourceMetrics, name string) (metricdata.Metrics, T, bool) {
 	t.Helper()
 
 	for _, scopeMetrics := range metrics.ScopeMetrics {
 		for _, metric := range scopeMetrics.Metrics {
 			if metric.Name == name {
-				return metric, metric.Data.(T) //nolint:forcetypeassert
+				return metric, metric.Data.(T), true //nolint:forcetypeassert
 			}
 		}
 	}
-	t.Fatalf("Metrics not found: %s", name)
 	var defaultVal T
-	return metricdata.Metrics{}, defaultVal
+	return metricdata.Metrics{}, defaultVal, false
 }
 
 func requireGaugeNotEmpty(t *testing.T, metrics metricdata.ResourceMetrics, name string, attrs ...attribute.KeyValue) (metricdata.Metrics, metricdata.Gauge[float64]) { //nolint:unparam
 	t.Helper()
 
-	metric, metricData := getMetric[metricdata.Gauge[float64]](t, metrics, name)
+	metric, metricData := requireMetric[metricdata.Gauge[float64]](t, metrics, name)
 	require.NotEmpty(t, metricData.DataPoints)
 	metricdatatest.AssertHasAttributes(t, metric, attrs...)
 	return metric, metricData
@@ -480,16 +557,31 @@ func requireGaugeNotEmpty(t *testing.T, metrics metricdata.ResourceMetrics, name
 func requireHistogramCount(t *testing.T, metrics metricdata.ResourceMetrics, name string, count uint64, attrs ...attribute.KeyValue) (metricdata.Metrics, metricdata.Histogram[float64]) { //nolint:unparam
 	t.Helper()
 
-	metric, metricData := getMetric[metricdata.Histogram[float64]](t, metrics, name)
+	metric, metricData := requireMetric[metricdata.Histogram[float64]](t, metrics, name)
 	require.Equal(t, count, metricData.DataPoints[0].Count)
 	metricdatatest.AssertHasAttributes(t, metric, attrs...)
+	return metric, metricData
+}
+
+func requireNoMetric(t *testing.T, metrics metricdata.ResourceMetrics, name string) {
+	t.Helper()
+
+	_, _, ok := getMetric[metricdata.ResourceMetrics](t, metrics, name)
+	require.False(t, ok, "Metric should not have been emitted, but was found: "+name)
+}
+
+func requireMetric[T metricdatatest.Datatypes](t *testing.T, metrics metricdata.ResourceMetrics, name string) (metricdata.Metrics, T) {
+	t.Helper()
+
+	metric, metricData, ok := getMetric[T](t, metrics, name)
+	require.True(t, ok, "Metric not found: "+name)
 	return metric, metricData
 }
 
 func requireSum(t *testing.T, metrics metricdata.ResourceMetrics, name string, val int64, attrs ...attribute.KeyValue) (metricdata.Metrics, metricdata.Sum[int64]) { //nolint:unparam
 	t.Helper()
 
-	metric, metricData := getMetric[metricdata.Sum[int64]](t, metrics, name)
+	metric, metricData := requireMetric[metricdata.Sum[int64]](t, metrics, name)
 	require.Equal(t, val, metricData.DataPoints[0].Value)
 	metricdatatest.AssertHasAttributes(t, metric, attrs...)
 	return metric, metricData
