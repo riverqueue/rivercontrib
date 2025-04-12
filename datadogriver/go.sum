@@ -151,8 +151,8 @@ github.com/riverqueue/river/rivershared v0.19.0 h1:TZvFM6CC+QgwQQUMQ5Ueuhx25ptgq
 github.com/riverqueue/river/rivershared v0.19.0/go.mod h1:JAvmohuC5lounVk8e3zXZIs07Da3klzEeJo1qDQIbjw=
 github.com/riverqueue/river/rivertype v0.19.0 h1:5rwgdh21pVcU9WjrHIIO9qC2dOMdRrrZ/HZZOE0JRyY=
 github.com/riverqueue/river/rivertype v0.19.0/go.mod h1:DETcejveWlq6bAb8tHkbgJqmXWVLiFhTiEm8j7co1bE=
-github.com/riverqueue/rivercontrib/otelriver v0.0.0-20250316234026-fc1c8cd5c761 h1:9qM4iY/FzCXObq+/Y3VbYu7rwDGW+QlZle/Gfk7O+PM=
-github.com/riverqueue/rivercontrib/otelriver v0.0.0-20250316234026-fc1c8cd5c761/go.mod h1:PtiA6JdWATPPyOvTvdzaZhHK40P6KVCoh2AkZXOEMao=
+github.com/riverqueue/rivercontrib/otelriver v0.2.0 h1:dYAwoh6+wNeSttiRmFS53nFRDGsXrN9e7GCMdhq5dsA=
+github.com/riverqueue/rivercontrib/otelriver v0.2.0/go.mod h1:UvPxRkGbCfIgvVQ4sgYbYZaGS0UYmweaV/QD2L4B+rU=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
@@ -270,8 +270,8 @@ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLL
 golang.org/x/net v0.0.0-20200226121028-0de0cce0169b/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
 golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
 golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4/go.mod h1:p54w0d4576C0XHj96bSt6lcn1PtDYWL6XObtHCRCNQM=
-golang.org/x/net v0.35.0 h1:T5GQRQb2y08kTAByq9L4/bz8cipCdA8FbRTXewonqY8=
-golang.org/x/net v0.35.0/go.mod h1:EglIi67kWsHKlRzzVMUD93VMSWGFOMSZgxFjparz1Qk=
+golang.org/x/net v0.36.0 h1:vWF2fRbw4qslQsQzgFqZff+BItCvGFQqKzKIzx1rmoA=
+golang.org/x/net v0.36.0/go.mod h1:bFmbeoIPfrw4sMHNhb4J9f6+tPziuGjq7Jk/38fxi1I=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
