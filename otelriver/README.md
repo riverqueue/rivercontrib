@@ -1,4 +1,4 @@
-# otelriver
+# otelriver [![Build Status](https://github.com/riverqueue/rivercontrib/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/riverqueue/rivercontrib/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/riverqueue/rivercontrib.svg)](https://pkg.go.dev/github.com/riverqueue/rivercontrib/otelriver)
 
 [OpenTelemetry](https://opentelemetry.io/) utilities for the [River job queue](https://github.com/riverqueue/river).
 
