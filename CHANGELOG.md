@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-04-14
+
 ### Added
 
 - Added license file (`LICENSE`). The project uses the same Mozilla Public License Version 2.0 that the main River project uses. [PR #19](https://github.com/riverqueue/rivercontrib/pull/19).
