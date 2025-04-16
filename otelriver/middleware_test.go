@@ -295,7 +295,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
 		require.Equal(t, scheduledAt.Format(time.RFC3339), getAttribute(t, span.Attributes, "scheduled_at").AsString())
 		require.Equal(t, []string{"a", "b"}, getAttribute(t, span.Attributes, "tag").AsStringSlice())
-		require.Equal(t, "river.work", span.Name)
+		require.Equal(t, "river.work/no_op", span.Name)
 		require.Equal(t, codes.Ok, span.Status.Code)
 
 		var (
@@ -344,7 +344,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, int64(6), getAttribute(t, span.Attributes, "attempt").AsInt64())
 		require.Equal(t, "my_queue", getAttribute(t, span.Attributes, "queue").AsString())
 		require.Equal(t, "error", getAttribute(t, span.Attributes, "status").AsString())
-		require.Equal(t, "river.work", span.Name)
+		require.Equal(t, "river.work/no_op", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "error from doInner", span.Status.Description)
 
@@ -426,7 +426,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, int64(6), getAttribute(t, span.Attributes, "attempt").AsInt64())
 		require.Equal(t, "my_queue", getAttribute(t, span.Attributes, "queue").AsString())
 		require.Equal(t, "panic", getAttribute(t, span.Attributes, "status").AsString())
-		require.Equal(t, "river.work", span.Name)
+		require.Equal(t, "river.work/no_op", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "panic", span.Status.Description)
 

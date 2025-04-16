@@ -179,7 +179,7 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 }
 
 func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner func(context.Context) error) error {
-	ctx, span := m.tracer.Start(ctx, prefix+"work",
+	ctx, span := m.tracer.Start(ctx, prefix+"work/"+job.Kind,
 		trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
