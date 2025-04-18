@@ -517,6 +517,30 @@ func TestMiddleware(t *testing.T) {
 			require.Equal(t, "s", metric.Unit)
 		}
 	})
+
+	t.Run("WorkEnableWorkSpanJobKindSuffix ", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{
+			EnableWorkSpanJobKindSuffix: true,
+		})
+
+		doInner := func(ctx context.Context) error {
+			return nil
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{
+			ID:   123,
+			Kind: "no_op",
+		}, doInner)
+		require.NoError(t, err)
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.Equal(t, "river.work/no_op", span.Name)
+	})
 }
 
 func getAttribute(t *testing.T, attrs []attribute.KeyValue, key string) attribute.Value {
