@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-04-18
+
 ### Added
 
 - Added `otelriver` option `EnableWorkSpanJobKindSuffix` which appends the job kind a suffix to work spans so they look like `river.work/my_job` instead of `river.work`.
