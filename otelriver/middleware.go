@@ -44,6 +44,10 @@ type MiddlewareConfig struct {
 	// metric names, with attributes differentiating them.
 	EnableSemanticMetrics bool
 
+	// EnableWorkSpanJobKindSuffix appends the job kind a suffix to work spans
+	// so they look like `river.work/my_job` instead of `river.work`.
+	EnableWorkSpanJobKindSuffix bool
+
 	// MeterProvider is a MeterProvider to base metrics on. May be left as nil
 	// to use the default global provider.
 	MeterProvider metric.MeterProvider
@@ -179,7 +183,12 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 }
 
 func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner func(context.Context) error) error {
-	ctx, span := m.tracer.Start(ctx, prefix+"work/"+job.Kind,
+	spanName := prefix + "work"
+	if m.config.EnableWorkSpanJobKindSuffix {
+		spanName += "/" + job.Kind
+	}
+
+	ctx, span := m.tracer.Start(ctx, spanName,
 		trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
