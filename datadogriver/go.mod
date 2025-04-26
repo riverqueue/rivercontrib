@@ -1,13 +1,15 @@
 module github.com/riverqueue/rivercontrib/datadogriver
 
-go 1.22.0
+go 1.23.0
+
+toolchain go1.24.2
 
 require (
 	github.com/DataDog/dd-trace-go/v2 v2.0.0-rc.4
-	github.com/riverqueue/river v0.19.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.19.0
-	github.com/riverqueue/river/rivershared v0.19.0
-	github.com/riverqueue/river/rivertype v0.19.0
+	github.com/riverqueue/river v0.21.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.21.0
+	github.com/riverqueue/river/rivershared v0.21.0
+	github.com/riverqueue/river/rivertype v0.21.0
 	github.com/riverqueue/rivercontrib/otelriver v0.4.0
 	go.opentelemetry.io/otel v1.35.0
 )
@@ -47,7 +49,7 @@ require (
 	github.com/hashicorp/go-sockaddr v1.0.5 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.7.2 // indirect
+	github.com/jackc/pgx/v5 v5.7.4 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240226150601-1dcf7310316a // indirect
@@ -61,7 +63,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
-	github.com/riverqueue/river/riverdriver v0.19.0 // indirect
+	github.com/riverqueue/river/riverdriver v0.21.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.9.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.1 // indirect
