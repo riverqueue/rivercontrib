@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `nilerror` hook to detect nil structs wrapped in non-nil error interfaces. [PR #25](https://github.com/riverqueue/rivercontrib/pull/25).
+
 ## [0.4.0] - 2025-04-18
 
 ### Added
 
-- Added `otelriver` option `EnableWorkSpanJobKindSuffix` which appends the job kind a suffix to work spans so they look like `river.work/my_job` instead of `river.work`.
+- Added `otelriver` option `EnableWorkSpanJobKindSuffix` which appends the job kind a suffix to work spans so they look like `river.work/my_job` instead of `river.work`. [PR #23](https://github.com/riverqueue/rivercontrib/pull/23).
 
 ## [0.3.0] - 2025-04-14
 

@@ -10,7 +10,7 @@ import (
 	"github.com/riverqueue/rivercontrib/otelriver"
 )
 
-func Example_middleware() {
+func ExampleMiddleware() {
 	_, err := river.NewClient(riverpgxv5.New(nil), &river.Config{
 		Logger: slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn}),
 		Middleware: []rivertype.Middleware{
