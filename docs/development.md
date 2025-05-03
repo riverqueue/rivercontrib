@@ -29,8 +29,9 @@ Run the linter and try to autofix:
 
     ```shell
     git checkout master && git pull --rebase
-    git tag otelriver/$VERSION -m "release otelriver/$VERSION"
     git tag datadogriver/$VERSION -m "release datadogriver/$VERSION"
+    git tag nilerror/$VERSION -m "release nilerror/$VERSION"
+    git tag otelriver/$VERSION -m "release otelriver/$VERSION"
     git tag $VERSION
     ```
 
