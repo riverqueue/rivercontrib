@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-05-02
+
 ### Added
 
 - Add `nilerror` hook to detect nil structs wrapped in non-nil error interfaces. [PR #25](https://github.com/riverqueue/rivercontrib/pull/25).
