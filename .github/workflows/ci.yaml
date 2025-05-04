@@ -1,5 +1,11 @@
 name: CI
 
+env:
+  # Database to connect to that can create other databases with `CREATE DATABASE`.
+  ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432
+
+  TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/river_test?pool_max_conns=15&sslmode=disable
+
 on:
   push:
     branches:
@@ -9,6 +15,19 @@ on:
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout
@@ -22,6 +41,9 @@ jobs:
 
       - name: Display Go version
         run: go version
+
+      - name: Set up database
+        run: psql -c "CREATE DATABASE river_test" $ADMIN_DATABASE_URL
 
       - name: Test
         run: make test

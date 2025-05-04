@@ -2,15 +2,15 @@ package nilerror
 
 import (
 	"bytes"
-	"context"
 	"log/slog"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/util/slogutil"
 	"github.com/riverqueue/river/rivertype"
-	"github.com/stretchr/testify/require"
 )
 
 // Verify interface compliance.
@@ -27,7 +27,7 @@ func (*myCustomError) Error() string {
 func TestHook(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	type testBundle struct{}
 
@@ -80,7 +80,7 @@ func TestHook(t *testing.T) {
 		hook, _ := setupConfig(t, &HookConfig{Suppress: true})
 
 		var logBuf bytes.Buffer
-		hook.Archetype.Logger = slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn, Out: &logBuf})
+		hook.Logger = slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn, Out: &logBuf})
 
 		var myCustomErr *myCustomError
 		require.NoError(t, hook.WorkEnd(ctx, myCustomErr))
