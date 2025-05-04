@@ -60,7 +60,7 @@ func (h *Hook) WorkEnd(ctx context.Context, err error) error {
 				lastSlash   = strings.LastIndex(packagePath, "/")
 				packageName = packagePath[lastSlash+1:]
 				nilPtrName  = fmt.Sprintf("(*%s.%s)(<nil>)", packageName, nonPtrType.Name())
-				message     = fmt.Sprintf("non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: %s", nilPtrName)
+				message     = "non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: " + nilPtrName
 			)
 
 			if h.config.Suppress {

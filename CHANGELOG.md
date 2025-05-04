@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- More complete example test for `nilerror` package. [PR #27](https://github.com/riverqueue/rivercontrib/pull/27).
+
 ## [0.5.0] - 2025-05-02
 
 ### Added
