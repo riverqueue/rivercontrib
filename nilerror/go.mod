@@ -1,8 +1,9 @@
-module github.com/rivercontrib/nilerror
+module github.com/riverqueue/rivercontrib/nilerror
 
 go 1.24.2
 
 require (
+	github.com/jackc/pgx/v5 v5.7.4
 	github.com/riverqueue/river v0.21.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.21.0
 	github.com/riverqueue/river/rivershared v0.21.0
@@ -14,7 +15,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.7.4 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.21.0 // indirect
