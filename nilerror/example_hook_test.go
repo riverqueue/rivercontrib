@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rivercontrib/nilerror"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdbtest"
@@ -14,6 +13,7 @@ import (
 	"github.com/riverqueue/river/rivershared/util/slogutil"
 	"github.com/riverqueue/river/rivershared/util/testutil"
 	"github.com/riverqueue/river/rivertype"
+	"github.com/riverqueue/rivercontrib/nilerror"
 )
 
 type CustomError struct{}
