@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `panictoerror` middleware that recovers panics and returns them as errors to middlewares up the stack. [PR #32](https://github.com/riverqueue/rivercontrib/pull/32).
+
 ### Changed
 
 - More complete example test for `nilerror` package. [PR #27](https://github.com/riverqueue/rivercontrib/pull/27).

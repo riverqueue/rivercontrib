@@ -4,4 +4,5 @@ use (
 	./datadogriver
 	./otelriver
 	./nilerror
+	./panictoerror
 )
