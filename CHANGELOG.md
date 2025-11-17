@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - More complete example test for `nilerror` package. [PR #27](https://github.com/riverqueue/rivercontrib/pull/27).
 
+### Fixed
+
+- Fix GitHub import path for `nilerror` package. [PR #29](https://github.com/riverqueue/rivercontrib/pull/29).
+- Fix compliance of `nilerror.Hook` to `rivertype.HookWorkEnd` interface. [PR #30](https://github.com/riverqueue/rivercontrib/pull/30).
+
 ## [0.5.0] - 2025-05-02
 
 ### Added

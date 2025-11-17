@@ -13,11 +13,6 @@ import (
 	"github.com/riverqueue/river/rivertype"
 )
 
-// Verify interface compliance.
-var (
-	_ rivertype.HookWorkEnd = &Hook{}
-)
-
 type myCustomError struct{}
 
 func (*myCustomError) Error() string {
@@ -51,7 +46,7 @@ func TestHook(t *testing.T) {
 
 		hook, _ := setup(t)
 
-		require.NoError(t, hook.WorkEnd(ctx, nil))
+		require.NoError(t, hook.WorkEnd(ctx, &rivertype.JobRow{}, nil))
 	})
 
 	t.Run("NonNilError", func(t *testing.T) {
@@ -60,7 +55,7 @@ func TestHook(t *testing.T) {
 		hook, _ := setup(t)
 
 		myCustomErr := &myCustomError{}
-		require.Equal(t, myCustomErr, hook.WorkEnd(ctx, myCustomErr))
+		require.Equal(t, myCustomErr, hook.WorkEnd(ctx, &rivertype.JobRow{}, myCustomErr))
 	})
 
 	t.Run("NilError", func(t *testing.T) {
@@ -69,7 +64,7 @@ func TestHook(t *testing.T) {
 		hook, _ := setup(t)
 
 		var myCustomErr *myCustomError
-		require.EqualError(t, hook.WorkEnd(ctx, myCustomErr),
+		require.EqualError(t, hook.WorkEnd(ctx, &rivertype.JobRow{}, myCustomErr),
 			"non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: (*nilerror.myCustomError)(<nil>)",
 		)
 	})
@@ -80,13 +75,13 @@ func TestHook(t *testing.T) {
 		hook, _ := setupConfig(t, &HookConfig{Suppress: true})
 
 		var logBuf bytes.Buffer
-		hook.Logger = slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn, Out: &logBuf})
+		hook.Logger = slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn, ReplaceAttr: slogutil.NoLevelTime}))
 
 		var myCustomErr *myCustomError
-		require.NoError(t, hook.WorkEnd(ctx, myCustomErr))
+		require.NoError(t, hook.WorkEnd(ctx, &rivertype.JobRow{}, myCustomErr))
 
 		require.Equal(t,
-			"nilerror.Hook: Got non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: (*nilerror.myCustomError)(<nil>)\n",
+			`msg="nilerror.Hook: Got non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: (*nilerror.myCustomError)(<nil>)"`+"\n",
 			logBuf.String())
 	})
 }

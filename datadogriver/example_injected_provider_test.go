@@ -2,6 +2,7 @@ package datadogriver_test
 
 import (
 	"log/slog"
+	"os"
 
 	ddotel "github.com/DataDog/dd-trace-go/v2/ddtrace/opentelemetry"
 
@@ -17,7 +18,7 @@ func Example_injectedProvider() {
 	defer func() { _ = provider.Shutdown() }()
 
 	_, err := river.NewClient(riverpgxv5.New(nil), &river.Config{
-		Logger: slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn}),
+		Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn, ReplaceAttr: slogutil.NoLevelTime})),
 		Middleware: []rivertype.Middleware{
 			// Install the OpenTelemetry middleware to run for all jobs inserted
 			// or worked by this River client. Inject a specific DataDog provider.
