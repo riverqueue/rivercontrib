@@ -23,6 +23,9 @@ import (
 	"github.com/riverqueue/river/rivertype"
 )
 
+// Verify interface compliance.
+var _ rivertype.HookWorkEnd = &Hook{}
+
 // HookConfig is configuration for the nilerror hook.
 type HookConfig struct {
 	// Suppress causes the hook to suppress detected nil struct values wrapped
@@ -37,6 +40,7 @@ type HookConfig struct {
 type Hook struct {
 	baseservice.BaseService
 	rivertype.Hook
+
 	config *HookConfig
 }
 
@@ -50,7 +54,7 @@ func NewHook(config *HookConfig) *Hook {
 	return &Hook{config: config}
 }
 
-func (h *Hook) WorkEnd(ctx context.Context, err error) error {
+func (h *Hook) WorkEnd(ctx context.Context, _ *rivertype.JobRow, err error) error {
 	if err != nil {
 		errVal := reflect.ValueOf(err)
 		if errVal.IsNil() {

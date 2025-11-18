@@ -3,6 +3,7 @@ package nilerror_test
 import (
 	"context"
 	"log/slog"
+	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -56,7 +57,7 @@ func ExampleHook() {
 			// Alternatively, return an error and fail jobs instead.
 			// nilerror.NewHook(nil),
 		},
-		Logger: slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn}),
+		Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn, ReplaceAttr: slogutil.NoLevelTime})),
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
@@ -88,5 +89,5 @@ func ExampleHook() {
 	}
 
 	// Output:
-	// nilerror.Hook: Got non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: (*nilerror_test.CustomError)(<nil>)
+	// msg="nilerror.Hook: Got non-nil error containing nil internal value (see: https://go.dev/doc/faq#nil_error); probably a bug: (*nilerror_test.CustomError)(<nil>)"
 }
