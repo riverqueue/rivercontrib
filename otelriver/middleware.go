@@ -60,6 +60,7 @@ type MiddlewareConfig struct {
 // Middleware is a River middleware that emits OpenTelemetry metrics when jobs
 // are inserted or worked.
 type Middleware struct {
+	river.HookDefaults
 	river.MiddlewareDefaults
 
 	config  *MiddlewareConfig
@@ -78,6 +79,8 @@ type middlewareMetrics struct {
 	messagingClientOperationDuration metric.Float64Histogram
 	messagingClientSentMessages      metric.Int64Counter
 	messagingProcessDuration         metric.Float64Histogram
+	queueStateCount                  metric.Int64Gauge
+	queueTotalCount                  metric.Int64Gauge
 	workCount                        metric.Int64Counter
 	workDuration                     metric.Float64Gauge
 	workDurationHistogram            metric.Float64Histogram
@@ -116,6 +119,8 @@ func NewMiddleware(config *MiddlewareConfig) *Middleware {
 		insertManyCount:             mustInt64Counter(meter, prefix+"insert_many_count", metric.WithDescription("Number of job batches inserted (all jobs are inserted in a batch, but batches may be one job)"), metric.WithUnit("{job_batch}")),
 		insertManyDuration:          mustFloat64Gauge(meter, prefix+"insert_many_duration", metric.WithDescription("Duration of job batch insertion"), metric.WithUnit(durationUnit)),
 		insertManyDurationHistogram: mustFloat64Histogram(meter, prefix+"insert_many_duration_histogram", metric.WithDescription("Duration of job batch insertion (histogram)"), metric.WithUnit(durationUnit)),
+		queueStateCount:             mustInt64Gauge(meter, prefix+"queue_state_count", metric.WithDescription("Number of jobs in a queue by state"), metric.WithUnit("{job}")),
+		queueTotalCount:             mustInt64Gauge(meter, prefix+"queue_total_count", metric.WithDescription("Total number of jobs in a queue across all states"), metric.WithUnit("{job}")),
 		workCount:                   mustInt64Counter(meter, prefix+"work_count", metric.WithDescription("Number of jobs worked"), metric.WithUnit("{job}")),
 		workDuration:                mustFloat64Gauge(meter, prefix+"work_duration", metric.WithDescription("Duration of job being worked"), metric.WithUnit(durationUnit)),
 		workDurationHistogram:       mustFloat64Histogram(meter, prefix+"work_duration_histogram", metric.WithDescription("Duration of job being worked (histogram)"), metric.WithUnit(durationUnit)),
@@ -180,6 +185,25 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 	insertRes, err = doInner(ctx)
 	panicked = false
 	return insertRes, err
+}
+
+func (m *Middleware) QueueStateCount(ctx context.Context, params *rivertype.HookQueueStateCountParams) {
+	for queue, result := range params.ByQueue {
+		for state, count := range result.ByState {
+			m.metrics.queueStateCount.Record(ctx, int64(count),
+				metric.WithAttributes(
+					attribute.String("queue", queue),
+					attribute.String("state", string(state)),
+				),
+			)
+		}
+
+		m.metrics.queueTotalCount.Record(ctx, int64(result.Total),
+			metric.WithAttributes(
+				attribute.String("queue", queue),
+			),
+		)
+	}
 }
 
 func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner func(context.Context) error) error {
@@ -282,6 +306,14 @@ func mustFloat64Gauge(meter metric.Meter, name string, options ...metric.Float64
 
 func mustFloat64Histogram(meter metric.Meter, name string, options ...metric.Float64HistogramOption) metric.Float64Histogram {
 	metric, err := meter.Float64Histogram(name, options...)
+	if err != nil {
+		panic(err)
+	}
+	return metric
+}
+
+func mustInt64Gauge(meter metric.Meter, name string, options ...metric.Int64GaugeOption) metric.Int64Gauge {
+	metric, err := meter.Int64Gauge(name, options...)
 	if err != nil {
 		panic(err)
 	}

@@ -21,6 +21,7 @@ import (
 
 // Verify interface compliance.
 var (
+	_ rivertype.HookQueueStateCount = &Middleware{} // the middleware is both hook and middleware (the hook so it can emit queue counts); kind of weird, but it works fine
 	_ rivertype.JobInsertMiddleware = &Middleware{}
 	_ rivertype.WorkerMiddleware    = &Middleware{}
 )
@@ -256,6 +257,86 @@ func TestMiddleware(t *testing.T) {
 			metric, _ := requireHistogramCount(t, metrics, "messaging.client.operation.duration", 1, expectedAttrs...)
 			require.Equal(t, "s", metric.Unit)
 		}
+	})
+
+	t.Run("QueueStateCount", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		params := &rivertype.HookQueueStateCountParams{
+			ByQueue: map[string]rivertype.HookQueueStateCountResult{
+				"default": {
+					ByState: map[rivertype.JobState]int{
+						rivertype.JobStateAvailable: 5,
+						rivertype.JobStateRunning:   3,
+						rivertype.JobStateCompleted: 10,
+					},
+					Total: 18,
+				},
+				"critical": {
+					ByState: map[rivertype.JobState]int{
+						rivertype.JobStateAvailable: 2,
+						rivertype.JobStateScheduled: 1,
+					},
+					Total: 3,
+				},
+			},
+		}
+
+		// Preflight: verify Total is the sum of all ByState counts so
+		// test data stays consistent if someone edits it later.
+		for queue, result := range params.ByQueue {
+			var sum int
+			for _, count := range result.ByState {
+				sum += count
+			}
+			require.Equal(t, sum, result.Total, "Total for queue %q doesn't match sum of ByState", queue)
+		}
+
+		middleware.QueueStateCount(ctx, params)
+
+		var metrics metricdata.ResourceMetrics
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+
+		_, metricData := requireMetric[metricdata.Gauge[int64]](t, metrics, "river.queue_state_count")
+
+		// Build a map of (queue, state) -> value for easy assertion.
+		type queueState struct{ queue, state string }
+		counts := make(map[queueState]int64)
+		for _, dataPoint := range metricData.DataPoints {
+			var key queueState
+			for _, attr := range dataPoint.Attributes.ToSlice() {
+				switch string(attr.Key) {
+				case "queue":
+					key.queue = attr.Value.AsString()
+				case "state":
+					key.state = attr.Value.AsString()
+				}
+			}
+			counts[key] = dataPoint.Value
+		}
+
+		require.Equal(t, int64(5), counts[queueState{"default", "available"}])
+		require.Equal(t, int64(3), counts[queueState{"default", "running"}])
+		require.Equal(t, int64(10), counts[queueState{"default", "completed"}])
+		require.Equal(t, int64(2), counts[queueState{"critical", "available"}])
+		require.Equal(t, int64(1), counts[queueState{"critical", "scheduled"}])
+
+		// Verify total counts per queue.
+		_, totalData := requireMetric[metricdata.Gauge[int64]](t, metrics, "river.queue_total_count")
+
+		totals := make(map[string]int64)
+		for _, dataPoint := range totalData.DataPoints {
+			for _, attr := range dataPoint.Attributes.ToSlice() {
+				if string(attr.Key) == "queue" {
+					totals[attr.Value.AsString()] = dataPoint.Value
+				}
+			}
+		}
+
+		require.Equal(t, int64(18), totals["default"])
+		require.Equal(t, int64(3), totals["critical"])
 	})
 
 	t.Run("WorkSuccess", func(t *testing.T) {
