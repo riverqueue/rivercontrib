@@ -40,14 +40,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// replace github.com/riverqueue/river => ../../river
+replace github.com/riverqueue/river => ../../river
 
-// replace github.com/riverqueue/river/riverdriver => ../../river/riverdriver
+replace github.com/riverqueue/river/riverdriver => ../../river/riverdriver
 
-// replace github.com/riverqueue/river/riverdriver => ../../river/riverdriver
+replace github.com/riverqueue/river/riverdriver/riverpgxv5 => ../../river/riverdriver/riverpgxv5
 
-// replace github.com/riverqueue/river/riverdriver/riverpgxv5 => ../../river/riverdriver/riverpgxv5
+replace github.com/riverqueue/river/rivershared => ../../river/rivershared
 
-// replace github.com/riverqueue/river/rivershared => ../../river/rivershared
-
-// replace github.com/riverqueue/river/rivertype => ../../river/rivertype
+replace github.com/riverqueue/river/rivertype => ../../river/rivertype

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `otelriver.Middleware` now implements `HookQueueStateCount` and uses it to emit job counts by state for each known job queue. [PR #47](https://github.com/riverqueue/rivercontrib/pull/47).
+
 ## [0.7.0] - 2026-01-18
 
 ### Added
