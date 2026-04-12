@@ -34,7 +34,7 @@ type PanicError struct {
 func (e *PanicError) Error() string {
 	var sb strings.Builder
 	for _, frame := range e.Trace {
-		sb.WriteString(fmt.Sprintf("%s\n\t%s:%d\n", frame.Function, frame.File, frame.Line))
+		fmt.Fprintf(&sb, "%s\n\t%s:%d\n", frame.Function, frame.File, frame.Line)
 	}
 
 	return fmt.Sprintf("PanicError: %v\n%s", e.Cause, sb.String())
