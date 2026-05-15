@@ -3,7 +3,7 @@ module github.com/riverqueue/rivercontrib/versionedjob
 go 1.25.5
 
 require (
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/riverqueue/river v0.29.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.29.0
 	github.com/riverqueue/river/rivershared v0.29.0
