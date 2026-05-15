@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-15
+
+### Added
+
+- Augment `otelriver` middleware to cleanly handle errors returned in batch results from River Pro's batch jobs feature. [PR #54](https://github.com/riverqueue/rivercontrib/pull/54).
+
 ## [0.7.0] - 2026-01-18
 
 ### Added
