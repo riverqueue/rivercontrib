@@ -402,6 +402,94 @@ func TestMiddleware(t *testing.T) {
 		require.True(t, getAttribute(t, span.Attributes, "snooze").AsBool())
 	})
 
+	t.Run("WorkBatchResultWithJobError", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) error {
+			return &fakeBatchError{errorsByID: map[int64]error{
+				123: errors.New("job-specific error"),
+				456: errors.New("other job error"),
+			}}
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{ID: 123, Kind: "no_op"}, doInner)
+		require.EqualError(t, err, "batch error")
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.Equal(t, "error", getAttribute(t, span.Attributes, "status").AsString())
+		require.Equal(t, codes.Error, span.Status.Code)
+		require.Equal(t, "job-specific error", span.Status.Description)
+	})
+
+	t.Run("WorkBatchResultWithNoJobError", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) error {
+			return &fakeBatchError{errorsByID: map[int64]error{
+				456: errors.New("other job error"),
+			}}
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{ID: 123, Kind: "no_op"}, doInner)
+		require.EqualError(t, err, "batch error")
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
+		require.Equal(t, codes.Ok, span.Status.Code)
+	})
+
+	t.Run("WorkBatchResultWithJobCancelError", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) error {
+			return &fakeBatchError{errorsByID: map[int64]error{
+				123: rivertype.JobCancel(errors.New("cancelled")),
+			}}
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{ID: 123, Kind: "no_op"}, doInner)
+		require.EqualError(t, err, "batch error")
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.True(t, getAttribute(t, span.Attributes, "cancel").AsBool())
+	})
+
+	t.Run("WorkBatchResultWithJobSnoozeError", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) error {
+			return &fakeBatchError{errorsByID: map[int64]error{
+				123: &rivertype.JobSnoozeError{},
+			}}
+		}
+
+		err := middleware.Work(ctx, &rivertype.JobRow{ID: 123, Kind: "no_op"}, doInner)
+		require.EqualError(t, err, "batch error")
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+
+		span := spans[0]
+		require.True(t, getAttribute(t, span.Attributes, "snooze").AsBool())
+	})
+
 	t.Run("WorkPanic", func(t *testing.T) {
 		t.Parallel()
 
@@ -542,6 +630,14 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.work/no_op", span.Name)
 	})
 }
+
+type fakeBatchError struct {
+	errorsByID map[int64]error
+}
+
+func (e *fakeBatchError) Error() string { return "batch error" }
+
+func (e *fakeBatchError) ErrorsByID() map[int64]error { return e.errorsByID }
 
 func getAttribute(t *testing.T, attrs []attribute.KeyValue, key string) attribute.Value {
 	t.Helper()
