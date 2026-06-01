@@ -165,22 +165,22 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 		}
 
 		span.SetAttributes(attrs...) // set after finalizing status
-		span.SetAttributes(attribute.Int64("duplicate_skipped_count", skipped))
+		span.SetAttributes(attribute.Int64("unique_skipped_as_duplicate_count", skipped))
 
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)
 
-		// Partition insert_count by skipped_as_duplicate so the metric
-		// shows how many of the submitted jobs were dropped by UniqueOpts
-		// vs. actually enqueued. Sum across both data points still equals
-		// len(manyParams).
+		// Partition insert_count by unique_skipped_as_duplicate so the
+		// metric shows how many of the submitted jobs were dropped by
+		// UniqueOpts vs. actually enqueued. Sum across both data points
+		// still equals len(manyParams).
 		if inserted := int64(len(manyParams)) - skipped; inserted > 0 {
 			m.metrics.insertCount.Add(ctx, inserted,
-				metric.WithAttributes(append(attrs, attribute.Bool("skipped_as_duplicate", false))...))
+				metric.WithAttributes(append(attrs, attribute.Bool("unique_skipped_as_duplicate", false))...))
 		}
 		if skipped > 0 {
 			m.metrics.insertCount.Add(ctx, skipped,
-				metric.WithAttributes(append(attrs, attribute.Bool("skipped_as_duplicate", true))...))
+				metric.WithAttributes(append(attrs, attribute.Bool("unique_skipped_as_duplicate", true))...))
 		}
 		m.metrics.insertManyCount.Add(ctx, 1, measurementOpt)
 		m.metrics.insertManyDuration.Record(ctx, duration, measurementOpt)

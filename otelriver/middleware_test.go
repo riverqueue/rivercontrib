@@ -82,7 +82,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Ok, span.Status.Code)
-		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "duplicate_skipped_count").AsInt64())
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -93,10 +93,10 @@ func TestMiddleware(t *testing.T) {
 		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
 		requireSumByAttrs(t, metrics, "river.insert_count", 1,
 			attribute.String("status", "ok"),
-			attribute.Bool("skipped_as_duplicate", false),
+			attribute.Bool("unique_skipped_as_duplicate", false),
 		)
 		requireSumByAttrs(t, metrics, "river.insert_count", 0,
-			attribute.Bool("skipped_as_duplicate", true),
+			attribute.Bool("unique_skipped_as_duplicate", true),
 		)
 		requireSum(t, metrics, "river.insert_many_count", 1, expectedAttrs...)
 		{
@@ -129,7 +129,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "error from doInner", span.Status.Description)
-		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "duplicate_skipped_count").AsInt64())
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -140,10 +140,10 @@ func TestMiddleware(t *testing.T) {
 		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
 		requireSumByAttrs(t, metrics, "river.insert_count", 1,
 			attribute.String("status", "error"),
-			attribute.Bool("skipped_as_duplicate", false),
+			attribute.Bool("unique_skipped_as_duplicate", false),
 		)
 		requireSumByAttrs(t, metrics, "river.insert_count", 0,
-			attribute.Bool("skipped_as_duplicate", true),
+			attribute.Bool("unique_skipped_as_duplicate", true),
 		)
 		requireSum(t, metrics, "river.insert_many_count", 1, expectedAttrs...)
 		requireGaugeNotEmpty(t, metrics, "river.insert_many_duration", expectedAttrs...)
@@ -171,7 +171,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "panic", span.Status.Description)
-		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "duplicate_skipped_count").AsInt64())
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -223,16 +223,16 @@ func TestMiddleware(t *testing.T) {
 
 		spans := bundle.traceExporter.GetSpans()
 		require.Len(t, spans, 1)
-		require.EqualValues(t, 2, getAttribute(t, spans[0].Attributes, "duplicate_skipped_count").AsInt64())
+		require.EqualValues(t, 2, getAttribute(t, spans[0].Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var metrics metricdata.ResourceMetrics
 		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
 		requireSumByAttrs(t, metrics, "river.insert_count", 2,
 			attribute.String("status", "ok"),
-			attribute.Bool("skipped_as_duplicate", true),
+			attribute.Bool("unique_skipped_as_duplicate", true),
 		)
 		requireSumByAttrs(t, metrics, "river.insert_count", 0,
-			attribute.Bool("skipped_as_duplicate", false),
+			attribute.Bool("unique_skipped_as_duplicate", false),
 		)
 	})
 
@@ -257,17 +257,17 @@ func TestMiddleware(t *testing.T) {
 
 		spans := bundle.traceExporter.GetSpans()
 		require.Len(t, spans, 1)
-		require.EqualValues(t, 2, getAttribute(t, spans[0].Attributes, "duplicate_skipped_count").AsInt64())
+		require.EqualValues(t, 2, getAttribute(t, spans[0].Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var metrics metricdata.ResourceMetrics
 		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
 		requireSumByAttrs(t, metrics, "river.insert_count", 3,
 			attribute.String("status", "ok"),
-			attribute.Bool("skipped_as_duplicate", false),
+			attribute.Bool("unique_skipped_as_duplicate", false),
 		)
 		requireSumByAttrs(t, metrics, "river.insert_count", 2,
 			attribute.String("status", "ok"),
-			attribute.Bool("skipped_as_duplicate", true),
+			attribute.Bool("unique_skipped_as_duplicate", true),
 		)
 		// Sum across both data points should still equal len(manyParams).
 		requireSumByAttrs(t, metrics, "river.insert_count", 5)
