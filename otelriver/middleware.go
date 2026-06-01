@@ -156,12 +156,32 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 		duration := m.durationInPreferredUnit(time.Since(begin))
 
 		setStatus(attrs, statusIndex, span, panicked, err)
+
+		var skipped int64
+		for _, r := range insertRes {
+			if r != nil && r.UniqueSkippedAsDuplicate {
+				skipped++
+			}
+		}
+
 		span.SetAttributes(attrs...) // set after finalizing status
+		span.SetAttributes(attribute.Int64("duplicate_skipped_count", skipped))
 
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)
 
-		m.metrics.insertCount.Add(ctx, int64(len(manyParams)), measurementOpt)
+		// Partition insert_count by skipped_as_duplicate so the metric
+		// shows how many of the submitted jobs were dropped by UniqueOpts
+		// vs. actually enqueued. Sum across both data points still equals
+		// len(manyParams).
+		if inserted := int64(len(manyParams)) - skipped; inserted > 0 {
+			m.metrics.insertCount.Add(ctx, inserted,
+				metric.WithAttributes(append(attrs, attribute.Bool("skipped_as_duplicate", false))...))
+		}
+		if skipped > 0 {
+			m.metrics.insertCount.Add(ctx, skipped,
+				metric.WithAttributes(append(attrs, attribute.Bool("skipped_as_duplicate", true))...))
+		}
 		m.metrics.insertManyCount.Add(ctx, 1, measurementOpt)
 		m.metrics.insertManyDuration.Record(ctx, duration, measurementOpt)
 		m.metrics.insertManyDurationHistogram.Record(ctx, duration, measurementOpt)

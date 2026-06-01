@@ -82,6 +82,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Ok, span.Status.Code)
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "duplicate_skipped_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -90,7 +91,13 @@ func TestMiddleware(t *testing.T) {
 			metrics metricdata.ResourceMetrics
 		)
 		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
-		requireSum(t, metrics, "river.insert_count", 1, expectedAttrs...)
+		requireSumByAttrs(t, metrics, "river.insert_count", 1,
+			attribute.String("status", "ok"),
+			attribute.Bool("skipped_as_duplicate", false),
+		)
+		requireSumByAttrs(t, metrics, "river.insert_count", 0,
+			attribute.Bool("skipped_as_duplicate", true),
+		)
 		requireSum(t, metrics, "river.insert_many_count", 1, expectedAttrs...)
 		{
 			metric, _ := requireGaugeNotEmpty(t, metrics, "river.insert_many_duration", expectedAttrs...)
@@ -122,6 +129,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "error from doInner", span.Status.Description)
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "duplicate_skipped_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -130,7 +138,13 @@ func TestMiddleware(t *testing.T) {
 			metrics metricdata.ResourceMetrics
 		)
 		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
-		requireSum(t, metrics, "river.insert_count", 1, expectedAttrs...)
+		requireSumByAttrs(t, metrics, "river.insert_count", 1,
+			attribute.String("status", "error"),
+			attribute.Bool("skipped_as_duplicate", false),
+		)
+		requireSumByAttrs(t, metrics, "river.insert_count", 0,
+			attribute.Bool("skipped_as_duplicate", true),
+		)
 		requireSum(t, metrics, "river.insert_many_count", 1, expectedAttrs...)
 		requireGaugeNotEmpty(t, metrics, "river.insert_many_duration", expectedAttrs...)
 		requireHistogramCount(t, metrics, "river.insert_many_duration_histogram", 1, expectedAttrs...)
@@ -157,6 +171,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "panic", span.Status.Description)
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "duplicate_skipped_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -189,6 +204,73 @@ func TestMiddleware(t *testing.T) {
 
 		_, err := middleware.InsertMany(ctx, []*rivertype.JobInsertParams{{Kind: "no_op"}}, doInner)
 		require.NoError(t, err)
+	})
+
+	t.Run("InsertManyAllDuplicates", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) ([]*rivertype.JobInsertResult, error) {
+			return []*rivertype.JobInsertResult{
+				{Job: &rivertype.JobRow{ID: 1}, UniqueSkippedAsDuplicate: true},
+				{Job: &rivertype.JobRow{ID: 2}, UniqueSkippedAsDuplicate: true},
+			}, nil
+		}
+
+		_, err := middleware.InsertMany(ctx, []*rivertype.JobInsertParams{{}, {}}, doInner)
+		require.NoError(t, err)
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+		require.EqualValues(t, 2, getAttribute(t, spans[0].Attributes, "duplicate_skipped_count").AsInt64())
+
+		var metrics metricdata.ResourceMetrics
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		requireSumByAttrs(t, metrics, "river.insert_count", 2,
+			attribute.String("status", "ok"),
+			attribute.Bool("skipped_as_duplicate", true),
+		)
+		requireSumByAttrs(t, metrics, "river.insert_count", 0,
+			attribute.Bool("skipped_as_duplicate", false),
+		)
+	})
+
+	t.Run("InsertManyMixedDuplicates", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) ([]*rivertype.JobInsertResult, error) {
+			return []*rivertype.JobInsertResult{
+				{Job: &rivertype.JobRow{ID: 1}, UniqueSkippedAsDuplicate: false},
+				{Job: &rivertype.JobRow{ID: 2}, UniqueSkippedAsDuplicate: true},
+				{Job: &rivertype.JobRow{ID: 3}, UniqueSkippedAsDuplicate: false},
+				{Job: &rivertype.JobRow{ID: 4}, UniqueSkippedAsDuplicate: true},
+				{Job: &rivertype.JobRow{ID: 5}, UniqueSkippedAsDuplicate: false},
+			}, nil
+		}
+
+		_, err := middleware.InsertMany(ctx,
+			[]*rivertype.JobInsertParams{{}, {}, {}, {}, {}}, doInner)
+		require.NoError(t, err)
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+		require.EqualValues(t, 2, getAttribute(t, spans[0].Attributes, "duplicate_skipped_count").AsInt64())
+
+		var metrics metricdata.ResourceMetrics
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		requireSumByAttrs(t, metrics, "river.insert_count", 3,
+			attribute.String("status", "ok"),
+			attribute.Bool("skipped_as_duplicate", false),
+		)
+		requireSumByAttrs(t, metrics, "river.insert_count", 2,
+			attribute.String("status", "ok"),
+			attribute.Bool("skipped_as_duplicate", true),
+		)
+		// Sum across both data points should still equal len(manyParams).
+		requireSumByAttrs(t, metrics, "river.insert_count", 5)
 	})
 
 	t.Run("InsertManyDurationUnitMS", func(t *testing.T) {
@@ -736,4 +818,48 @@ func requireSum(t *testing.T, metrics metricdata.ResourceMetrics, name string, v
 	require.Equal(t, val, metricData.DataPoints[0].Value)
 	metricdatatest.AssertHasAttributes(t, metric, attrs...)
 	return metric, metricData
+}
+
+// requireSumByAttrs asserts that the sum of all data points on the named
+// metric whose attributes are a superset of the given attrs equals the
+// expected value. A missing metric is treated as sum=0 so callers don't
+// need to distinguish "no data point" from "data point with value 0".
+// Pass no attrs to assert against the metric's grand total.
+func requireSumByAttrs(t *testing.T, metrics metricdata.ResourceMetrics, name string, expected int64, attrs ...attribute.KeyValue) {
+	t.Helper()
+
+	_, metricData, ok := getMetric[metricdata.Sum[int64]](t, metrics, name)
+	var got int64
+	if ok {
+		wantSet := attribute.NewSet(attrs...)
+		for _, dp := range metricData.DataPoints {
+			if attributeSetContains(dp.Attributes, wantSet) {
+				got += dp.Value
+			}
+		}
+	}
+	if got != expected {
+		t.Fatalf("sum of %s data points matching %v: got %d, want %d; data points: %v",
+			name, attrs, got, expected, formatDataPoints(metricData.DataPoints))
+	}
+}
+
+func attributeSetContains(got, want attribute.Set) bool {
+	iter := want.Iter()
+	for iter.Next() {
+		kv := iter.Attribute()
+		gotVal, ok := got.Value(kv.Key)
+		if !ok || gotVal != kv.Value {
+			return false
+		}
+	}
+	return true
+}
+
+func formatDataPoints(dps []metricdata.DataPoint[int64]) string {
+	out := make([]string, 0, len(dps))
+	for _, dp := range dps {
+		out = append(out, fmt.Sprintf("value=%d attrs=%v", dp.Value, dp.Attributes.ToSlice()))
+	}
+	return "[" + fmt.Sprint(out) + "]"
 }
