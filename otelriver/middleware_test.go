@@ -825,7 +825,7 @@ func requireSum(t *testing.T, metrics metricdata.ResourceMetrics, name string, v
 // expected value. A missing metric is treated as sum=0 so callers don't
 // need to distinguish "no data point" from "data point with value 0".
 // Pass no attrs to assert against the metric's grand total.
-func requireSumByAttrs(t *testing.T, metrics metricdata.ResourceMetrics, name string, expected int64, attrs ...attribute.KeyValue) {
+func requireSumByAttrs(t *testing.T, metrics metricdata.ResourceMetrics, name string, expected int64, attrs ...attribute.KeyValue) { //nolint:unparam
 	t.Helper()
 
 	_, metricData, ok := getMetric[metricdata.Sum[int64]](t, metrics, name)
