@@ -387,19 +387,37 @@ func TestMiddleware(t *testing.T) {
 		middleware, bundle := setup(t)
 
 		doInner := func(ctx context.Context) error {
-			return fmt.Errorf("wrapped job snooze: %w", &rivertype.JobSnoozeError{})
+			return fmt.Errorf("wrapped job snooze: %w", &rivertype.JobSnoozeError{Duration: 5 * time.Second})
 		}
 
 		err := middleware.Work(ctx, &rivertype.JobRow{
 			Kind: "no_op",
 		}, doInner)
-		require.EqualError(t, err, "wrapped job snooze: JobSnoozeError: 0s")
+		require.EqualError(t, err, "wrapped job snooze: JobSnoozeError: 5s")
 
 		spans := bundle.traceExporter.GetSpans()
 		require.Len(t, spans, 1)
 
 		span := spans[0]
 		require.True(t, getAttribute(t, span.Attributes, "snooze").AsBool())
+		// Snooze is flow control, not failure: span status is ok and the
+		// snooze.duration is recorded as a span-only attribute.
+		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
+		require.Equal(t, codes.Ok, span.Status.Code)
+		require.Equal(t, "5s", getAttribute(t, span.Attributes, "snooze.duration").AsString())
+
+		// The metric records status:ok with snooze:true so snoozes remain
+		// queryable as a metric dimension without counting against the
+		// error rate.
+		var (
+			expectedAttrs = []attribute.KeyValue{
+				attribute.String("status", "ok"),
+				attribute.Bool("snooze", true),
+			}
+			metrics metricdata.ResourceMetrics
+		)
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		requireSum(t, metrics, "river.work_count", 1, expectedAttrs...)
 	})
 
 	t.Run("WorkBatchResultWithJobError", func(t *testing.T) {
@@ -476,7 +494,7 @@ func TestMiddleware(t *testing.T) {
 
 		doInner := func(ctx context.Context) error {
 			return &fakeBatchError{errorsByID: map[int64]error{
-				123: &rivertype.JobSnoozeError{},
+				123: &rivertype.JobSnoozeError{Duration: 7 * time.Second},
 			}}
 		}
 
@@ -488,6 +506,19 @@ func TestMiddleware(t *testing.T) {
 
 		span := spans[0]
 		require.True(t, getAttribute(t, span.Attributes, "snooze").AsBool())
+		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
+		require.Equal(t, codes.Ok, span.Status.Code)
+		require.Equal(t, "7s", getAttribute(t, span.Attributes, "snooze.duration").AsString())
+
+		var (
+			expectedAttrs = []attribute.KeyValue{
+				attribute.String("status", "ok"),
+				attribute.Bool("snooze", true),
+			}
+			metrics metricdata.ResourceMetrics
+		)
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		requireSum(t, metrics, "river.work_count", 1, expectedAttrs...)
 	})
 
 	t.Run("WorkPanic", func(t *testing.T) {
