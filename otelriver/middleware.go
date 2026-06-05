@@ -174,8 +174,8 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 
 		span.SetAttributes(attrs...) // set after finalizing status
 		span.SetAttributes(
-			attribute.Int64("unique_skipped_as_duplicate_count", skipped),
 			attribute.StringSlice("kinds", kinds),
+			attribute.Int64("unique_skipped_as_duplicate_count", skipped),
 		)
 
 		// This allocates a new slice, so make sure to do it as few times as possible.

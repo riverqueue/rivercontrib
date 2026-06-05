@@ -82,8 +82,8 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "ok", getAttribute(t, span.Attributes, "status").AsString())
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Ok, span.Status.Code)
-		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 		require.Equal(t, []string{"no_op"}, getAttribute(t, span.Attributes, "kinds").AsStringSlice())
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -130,8 +130,8 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "error from doInner", span.Status.Description)
-		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 		require.Equal(t, []string{"no_op"}, getAttribute(t, span.Attributes, "kinds").AsStringSlice())
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -173,8 +173,8 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "panic", span.Status.Description)
-		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 		require.Equal(t, []string{"no_op"}, getAttribute(t, span.Attributes, "kinds").AsStringSlice())
+		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
