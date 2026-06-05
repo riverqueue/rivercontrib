@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -164,8 +165,18 @@ func (m *Middleware) InsertMany(ctx context.Context, manyParams []*rivertype.Job
 			}
 		}
 
+		kinds := make([]string, 0, len(manyParams))
+		for _, p := range manyParams {
+			kinds = append(kinds, p.Kind)
+		}
+		slices.Sort(kinds)
+		kinds = slices.Compact(kinds)
+
 		span.SetAttributes(attrs...) // set after finalizing status
-		span.SetAttributes(attribute.Int64("unique_skipped_as_duplicate_count", skipped))
+		span.SetAttributes(
+			attribute.Int64("unique_skipped_as_duplicate_count", skipped),
+			attribute.StringSlice("kinds", kinds),
+		)
 
 		// This allocates a new slice, so make sure to do it as few times as possible.
 		measurementOpt := metric.WithAttributes(attrs...)

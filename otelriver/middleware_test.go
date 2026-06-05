@@ -83,6 +83,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, "river.insert_many", span.Name)
 		require.Equal(t, codes.Ok, span.Status.Code)
 		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
+		require.Equal(t, []string{"no_op"}, getAttribute(t, span.Attributes, "kinds").AsStringSlice())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -130,6 +131,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "error from doInner", span.Status.Description)
 		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
+		require.Equal(t, []string{"no_op"}, getAttribute(t, span.Attributes, "kinds").AsStringSlice())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -172,6 +174,7 @@ func TestMiddleware(t *testing.T) {
 		require.Equal(t, codes.Error, span.Status.Code)
 		require.Equal(t, "panic", span.Status.Description)
 		require.EqualValues(t, 0, getAttribute(t, span.Attributes, "unique_skipped_as_duplicate_count").AsInt64())
+		require.Equal(t, []string{"no_op"}, getAttribute(t, span.Attributes, "kinds").AsStringSlice())
 
 		var (
 			expectedAttrs = []attribute.KeyValue{
@@ -271,6 +274,34 @@ func TestMiddleware(t *testing.T) {
 		)
 		// Sum across both data points should still equal len(manyParams).
 		requireSumByAttrs(t, metrics, "river.insert_count", 5)
+	})
+
+	t.Run("InsertManyMixedKinds", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		doInner := func(ctx context.Context) ([]*rivertype.JobInsertResult, error) {
+			return []*rivertype.JobInsertResult{
+				{Job: &rivertype.JobRow{ID: 1}},
+				{Job: &rivertype.JobRow{ID: 2}},
+				{Job: &rivertype.JobRow{ID: 3}},
+			}, nil
+		}
+
+		_, err := middleware.InsertMany(ctx, []*rivertype.JobInsertParams{
+			{Kind: "email_send"},
+			{Kind: "notification"},
+			{Kind: "email_send"},
+		}, doInner)
+		require.NoError(t, err)
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+		// kinds are deduplicated and sorted so identical batches produce
+		// identical span attributes.
+		require.Equal(t, []string{"email_send", "notification"},
+			getAttribute(t, spans[0].Attributes, "kinds").AsStringSlice())
 	})
 
 	t.Run("InsertManyDurationUnitMS", func(t *testing.T) {
