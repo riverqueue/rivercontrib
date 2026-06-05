@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `unique_skipped_as_duplicate` attributes to otel `insert_many` spans and `insert_count` metric. [PR #58](https://github.com/riverqueue/rivercontrib/pull/58).
+- Add `kinds` span attribute to `otelriver` `insert_many` spans listing the distinct job kinds in each batch. [PR #62](https://github.com/riverqueue/rivercontrib/pull/62).
 
 ### Changed
 
