@@ -24,6 +24,7 @@ import (
 // Verify interface compliance.
 var (
 	_ rivertype.JobInsertMiddleware = &Middleware{}
+	_ rivertype.HookMetricEmit      = &Middleware{}
 	_ rivertype.WorkerMiddleware    = &Middleware{}
 )
 
@@ -59,6 +60,68 @@ func TestMiddleware(t *testing.T) {
 
 		return setupConfig(t, &MiddlewareConfig{})
 	}
+
+	t.Run("MetricJobGetAvailableDuration", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		middleware.MetricEmit(ctx, &rivertype.HookMetricEmitParams{
+			Metric: &rivertype.JobGetAvailableDurationMetric{
+				Duration: 2500 * time.Millisecond,
+				Queue:    "critical",
+			},
+		})
+
+		var metrics metricdata.ResourceMetrics
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		metric, metricData := requireHistogramCount(t, metrics, "river.job_get_available_duration", 1,
+			attribute.String("queue", "critical"))
+		require.Equal(t, "s", metric.Unit)
+		require.InDelta(t, 2.5, metricData.DataPoints[0].Sum, 0.001)
+	})
+
+	t.Run("MetricJobGetAvailableDurationUnitMS", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{
+			DurationUnit: "ms",
+		})
+
+		middleware.MetricEmit(ctx, &rivertype.HookMetricEmitParams{
+			Metric: &rivertype.JobGetAvailableDurationMetric{
+				Duration: 2500 * time.Millisecond,
+				Queue:    "critical",
+			},
+		})
+
+		var metrics metricdata.ResourceMetrics
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		metric, metricData := requireHistogramCount(t, metrics, "river.job_get_available_duration", 1,
+			attribute.String("queue", "critical"))
+		require.Equal(t, "ms", metric.Unit)
+		require.InDelta(t, 2500.0, metricData.DataPoints[0].Sum, 0.001)
+	})
+
+	t.Run("MetricJobGetAvailableCount", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+
+		middleware.MetricEmit(ctx, &rivertype.HookMetricEmitParams{
+			Metric: &rivertype.JobGetAvailableCountMetric{
+				Count: 42,
+				Queue: "critical",
+			},
+		})
+
+		var metrics metricdata.ResourceMetrics
+		require.NoError(t, bundle.metricReader.Collect(ctx, &metrics))
+		metric, metricData := requireInt64HistogramCount(t, metrics, "river.job_get_available_count", 1,
+			attribute.String("queue", "critical"))
+		require.Equal(t, "{job}", metric.Unit)
+		require.EqualValues(t, 42, metricData.DataPoints[0].Sum)
+	})
 
 	t.Run("InsertManySuccess", func(t *testing.T) {
 		t.Parallel()
@@ -897,6 +960,15 @@ func requireHistogramCount(t *testing.T, metrics metricdata.ResourceMetrics, nam
 	t.Helper()
 
 	metric, metricData := requireMetric[metricdata.Histogram[float64]](t, metrics, name)
+	require.Equal(t, count, metricData.DataPoints[0].Count)
+	metricdatatest.AssertHasAttributes(t, metric, attrs...)
+	return metric, metricData
+}
+
+func requireInt64HistogramCount(t *testing.T, metrics metricdata.ResourceMetrics, name string, count uint64, attrs ...attribute.KeyValue) (metricdata.Metrics, metricdata.Histogram[int64]) { //nolint:unparam
+	t.Helper()
+
+	metric, metricData := requireMetric[metricdata.Histogram[int64]](t, metrics, name)
 	require.Equal(t, count, metricData.DataPoints[0].Count)
 	metricdatatest.AssertHasAttributes(t, metric, attrs...)
 	return metric, metricData
