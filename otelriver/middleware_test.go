@@ -2,6 +2,7 @@ package otelriver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata/metricdatatest"
@@ -302,6 +304,34 @@ func TestMiddleware(t *testing.T) {
 		// identical span attributes.
 		require.Equal(t, []string{"email_send", "notification"},
 			getAttribute(t, spans[0].Attributes, "kinds").AsStringSlice())
+	})
+
+	t.Run("InsertManyInjectsTraceparent", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{EnableTracePropagation: true})
+
+		params := []*rivertype.JobInsertParams{{Kind: "no_op"}}
+		doInner := func(ctx context.Context) ([]*rivertype.JobInsertResult, error) {
+			return []*rivertype.JobInsertResult{{Job: &rivertype.JobRow{ID: 1}}}, nil
+		}
+
+		_, err := middleware.InsertMany(ctx, params, doInner)
+		require.NoError(t, err)
+
+		// The insert_many span's context should have been injected into the params metadata.
+		require.NotNil(t, params[0].Metadata)
+		var meta map[string]any
+		require.NoError(t, json.Unmarshal(params[0].Metadata, &meta))
+		traceparent, ok := meta["traceparent"].(string)
+		require.True(t, ok, "expected traceparent key in job metadata")
+
+		// The traceparent must reference the insert_many span's trace and span IDs.
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+		insertSpan := spans[0]
+		require.Contains(t, traceparent, insertSpan.SpanContext.TraceID().String())
+		require.Contains(t, traceparent, insertSpan.SpanContext.SpanID().String())
 	})
 
 	t.Run("InsertManyDurationUnitMS", func(t *testing.T) {
@@ -748,6 +778,51 @@ func TestMiddleware(t *testing.T) {
 			metric, _ := requireHistogramCount(t, metrics, "messaging.process.duration", 1, expectedAttrs...)
 			require.Equal(t, "s", metric.Unit)
 		}
+	})
+
+	t.Run("WorkExtractsTraceparent", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{EnableTracePropagation: true})
+
+		// Build a synthetic traceparent pointing to a remote parent span.
+		parentTraceID := "4bf92f3577b34da6a3ce929d0e0e4736"
+		parentSpanID := "00f067aa0ba902b7"
+		carrier := propagation.MapCarrier{
+			"traceparent": fmt.Sprintf("00-%s-%s-01", parentTraceID, parentSpanID),
+		}
+		metadata, err := json.Marshal(carrier)
+		require.NoError(t, err)
+
+		err = middleware.Work(ctx, &rivertype.JobRow{
+			Kind:     "no_op",
+			Metadata: metadata,
+		}, func(ctx context.Context) error { return nil })
+		require.NoError(t, err)
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+		workSpan := spans[0]
+
+		// The work span must be linked to (not a child of) the insert span.
+		require.False(t, workSpan.Parent.IsValid(), "work span should not be a child of the insert span")
+		require.Len(t, workSpan.Links, 1)
+		require.Equal(t, parentTraceID, workSpan.Links[0].SpanContext.TraceID().String())
+		require.Equal(t, parentSpanID, workSpan.Links[0].SpanContext.SpanID().String())
+	})
+
+	t.Run("WorkExtractsTraceparentMissingMetadata", func(t *testing.T) {
+		t.Parallel()
+
+		middleware, bundle := setupConfig(t, &MiddlewareConfig{EnableTracePropagation: true})
+
+		// No traceparent in metadata — work span should be a root span.
+		err := middleware.Work(ctx, &rivertype.JobRow{Kind: "no_op"}, func(ctx context.Context) error { return nil })
+		require.NoError(t, err)
+
+		spans := bundle.traceExporter.GetSpans()
+		require.Len(t, spans, 1)
+		require.False(t, spans[0].Parent.IsValid(), "expected no parent span when metadata has no traceparent")
 	})
 
 	t.Run("WorkEnableWorkSpanJobKindSuffix ", func(t *testing.T) {

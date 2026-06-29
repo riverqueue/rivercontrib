@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `EnableTracePropagation` configuration method, which enables linking river job spans to the span that enqueued them for tracing *why* a job was enqueued. [PR #65](https://github.com/riverqueue/rivercontrib/pull/65)
+
 ## [0.10.0] - 2026-06-06
 
 ### Added
