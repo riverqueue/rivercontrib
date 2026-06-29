@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -17,7 +18,6 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
-	"github.com/tidwall/sjson"
 )
 
 const (
@@ -235,7 +235,8 @@ func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner fu
 
 	var startOpts []trace.SpanStartOption
 	if m.config.EnableTracePropagation {
-		if sc := extractSpanContext(ctx, job.Metadata); sc.IsValid() {
+		//nolint:contextcheck
+		if sc := extractSpanContext(job.Metadata); sc.IsValid() {
 			// We use a *link* to the span that enqueued this value, because river jobs are async by nature, so they may happen
 			// minutes, hours, or even days after they're enqueued, which can lead to really weird span contexts if a direct parent
 			// relationship is used.
@@ -385,7 +386,7 @@ func injectTraceContext(ctx context.Context, metadata []byte) []byte {
 // extractSpanContext reads W3C trace context from metadata JSON and returns the
 // remote SpanContext it encodes. Returns a zero SpanContext (IsValid() == false)
 // if no traceparent is present or the metadata cannot be parsed.
-func extractSpanContext(ctx context.Context, metadata []byte) trace.SpanContext {
+func extractSpanContext(metadata []byte) trace.SpanContext {
 	if len(metadata) == 0 {
 		return trace.SpanContext{}
 	}
