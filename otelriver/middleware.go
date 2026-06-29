@@ -50,9 +50,7 @@ type MiddlewareConfig struct {
 
 	// EnableTracePropagation injects W3C trace context (traceparent/tracestate)
 	// into job metadata on insert and extracts it on work, adding a span link
-	// from the work span back to the span that enqueued the job. A link is used
-	// rather than a parent so the work span's timeline is independent of the
-	// insert span (the two may be separated by minutes or hours).
+	// from the work span back to the span that enqueued the job.
 	EnableTracePropagation bool
 
 	// EnableWorkSpanJobKindSuffix appends the job kind a suffix to work spans
@@ -238,6 +236,9 @@ func (m *Middleware) Work(ctx context.Context, job *rivertype.JobRow, doInner fu
 	var startOpts []trace.SpanStartOption
 	if m.config.EnableTracePropagation {
 		if sc := extractSpanContext(ctx, job.Metadata); sc.IsValid() {
+			// We use a *link* to the span that enqueued this value, because river jobs are async by nature, so they may happen
+			// minutes, hours, or even days after they're enqueued, which can lead to really weird span contexts if a direct parent
+			// relationship is used.
 			startOpts = append(startOpts, trace.WithLinks(trace.Link{SpanContext: sc}))
 		}
 	}
