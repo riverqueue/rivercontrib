@@ -17,6 +17,7 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -369,18 +370,15 @@ func injectTraceContext(ctx context.Context, metadata []byte) []byte {
 	if len(metadata) == 0 {
 		metadata = []byte("{}")
 	}
-	var meta map[string]any
-	if err := json.Unmarshal(metadata, &meta); err != nil {
-		return metadata
-	}
+	original := metadata
 	for k, v := range carrier {
-		meta[k] = v
+		var err error
+		metadata, err = sjson.SetBytes(metadata, k, v)
+		if err != nil {
+			return original
+		}
 	}
-	injected, err := json.Marshal(meta)
-	if err != nil {
-		return metadata
-	}
-	return injected
+	return metadata
 }
 
 // extractSpanContext reads W3C trace context from metadata JSON and returns the
