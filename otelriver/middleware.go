@@ -398,7 +398,11 @@ func extractSpanContext(ctx context.Context, metadata []byte) trace.SpanContext 
 			carrier[k] = s
 		}
 	}
-	extracted := propagation.TraceContext{}.Extract(ctx, carrier)
+	// We use context.Background here because the only purpose of this function is to return
+	// a span context for *linking*. If one doesn't exist, we don't want to extract anything -
+	// and we certainly don't want to extract the span from `ctx`, which would most often lead to us
+	// linking to ourselves, which is pretty obviously incorrect!
+	extracted := propagation.TraceContext{}.Extract(context.Background(), carrier)
 	return trace.SpanFromContext(extracted).SpanContext()
 }
 
