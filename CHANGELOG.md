@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-24
+
 ### Added
 
 - Add `otelriver` hook support for River producer metrics, including `river.job_get_available_duration` and `river.job_get_available_count`. [PR #64](https://github.com/riverqueue/rivercontrib/pull/64).
+
+### Changed
+
+- Update River dependency to v0.41.0 in all subpackages. [PR #71](https://github.com/riverqueue/rivercontrib/pull/71).
 
 ## [0.11.0] - 2026-07-02
 
