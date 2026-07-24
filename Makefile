@@ -49,3 +49,46 @@ update-mod-go: ## Update `go`/`toolchain` directives in all submodules to match 
 .PHONY: update-mod-version
 update-mod-version: ## Update River packages in all submodules to $VERSION
 	PACKAGE_PREFIX="github.com/riverqueue/rivercontrib" go run github.com/riverqueue/river/rivershared/cmd/update-mod-version@latest ./go.work
+
+# These commands omit `./cmd` because updating River might cause
+# self-referencing problems to other River Pro modules from `./cmd`. We should
+# switch to a Go workspace to avoid all this nastiness.
+.PHONY: update-river
+update-river:: ## Update version of River dependencies to latest
+define update-river-target
+update-river:: ; cd $1 && \
+	go get -u github.com/riverqueue/river@latest \
+		github.com/riverqueue/river/riverdriver@latest \
+		github.com/riverqueue/river/riverdriver/riverdatabasesql@latest \
+		github.com/riverqueue/river/riverdriver/riverpgxv5@latest \
+		github.com/riverqueue/river/riverdriver/riversqlite@latest \
+		github.com/riverqueue/river/rivershared@latest \
+		github.com/riverqueue/river/rivertype@latest && \
+	go mod tidy
+endef
+$(foreach mod,$(submodules),$(eval $(call update-river-target,$(mod))))
+
+# Use this like:
+#
+#     RIVER_BRANCH=brandur-pilot-init make update-river-to-branch
+#
+# Which updates all River dependencies in all submodules to the given branch.
+# Omit `RIVER_BRANCH` to update to `master`.
+.PHONY: update-river-to-branch
+update-river-to-branch:: ## Update version of River dependencies to a specific branch
+
+# Set the branch to the value of RIVER_MASTER or default to 'master'
+RIVER_BRANCH ?= $(or $(RIVER_MASTER),master)
+
+define update-river-to-branch-target
+update-river-to-branch:: ; cd $1 && \
+	go get -u github.com/riverqueue/river@$(RIVER_BRANCH) \
+		github.com/riverqueue/river/riverdriver@$(RIVER_BRANCH) \
+		github.com/riverqueue/river/riverdriver/riverdatabasesql@$(RIVER_BRANCH) \
+		github.com/riverqueue/river/riverdriver/riverpgxv5@$(RIVER_BRANCH) \
+		github.com/riverqueue/river/riverdriver/riversqlite@$(RIVER_BRANCH) \
+		github.com/riverqueue/river/rivershared@$(RIVER_BRANCH) \
+		github.com/riverqueue/river/rivertype@$(RIVER_BRANCH) && \
+	go mod tidy
+endef
+$(foreach mod,$(submodules),$(eval $(call update-river-to-branch-target,$(mod))))
