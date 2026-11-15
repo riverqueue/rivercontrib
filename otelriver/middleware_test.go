@@ -965,7 +965,7 @@ func requireHistogramCount(t *testing.T, metrics metricdata.ResourceMetrics, nam
 	return metric, metricData
 }
 
-func requireInt64HistogramCount(t *testing.T, metrics metricdata.ResourceMetrics, name string, count uint64, attrs ...attribute.KeyValue) (metricdata.Metrics, metricdata.Histogram[int64]) { //nolint:unparam
+func requireInt64HistogramCount(t *testing.T, metrics metricdata.ResourceMetrics, name string, count uint64, attrs ...attribute.KeyValue) (metricdata.Metrics, metricdata.Histogram[int64]) {
 	t.Helper()
 
 	metric, metricData := requireMetric[metricdata.Histogram[int64]](t, metrics, name)
